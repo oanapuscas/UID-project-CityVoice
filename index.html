@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CityVoice – Cluj Report Map</title>
+ 
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app">
+    <!-- LEFT: Map -->
+    <div id="map"></div>
+
+    <!-- RIGHT: Report panel -->
+    <aside class="panel">
+      <h2>Report a city problem</h2>
+      <p>
+        Pick a category, then click the map to drop a pin 📍
+        (FixMyStreet-style reporting).
+      </p>
+
+      <div class="card">
+        <label for="category">Problem category</label>
+        <select id="category">
+          <option value="Pothole">Pothole</option>
+          <option value="Broken pavement / sidewalk">Broken pavement / sidewalk</option>
+          <option value="Streetlight not working">Streetlight not working</option>
+          <option value="Graffiti / vandalism">Graffiti / vandalism</option>
+          <option value="Fly-tipping / illegal dumping">Fly-tipping / illegal dumping</option>
+          <option value="Blocked drain / flooding">Blocked drain / flooding</option>
+          <option value="Damaged road sign / markings">Damaged road sign / markings</option>
+          <option value="Abandoned vehicle">Abandoned vehicle</option>
+          <option value="Overgrown vegetation">Overgrown vegetation</option>
+          <option value="Waste bin issue">Waste bin issue</option>
+          <option value="Noise / disturbance">Noise / disturbance</option>
+          <option value="Stray animals / animal issue">Stray animals / animal issue</option>
+        </select>
+
+        <label for="notes">Extra details (optional)</label>
+        <textarea id="notes" placeholder="What happened? Any landmarks? When did you notice it?"></textarea>
+
+        <button id="modeBtn" type="button">Drop pin mode: ON</button>
+
+        <div class="hint">
+          Tip: You can zoom in before placing the pin for better accuracy.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="small"><strong>How it works:</strong></div>
+        <hr>
+        <div class="small">1) Choose category</div>
+        <div class="small">2) Click map → pin appears</div>
+        <div class="small">3) Pin popup shows your category + notes + coordinates</div>
+      </div>
+
+      <div class="small">
+        (This is UI-only for now — no backend saving yet.)
+      </div>
+    </aside>
+  </div>
+ 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // map of cluj-napoca
+    const map = L.map("map").setView([46.7712, 23.6236], 13);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+ 
+    const categoryEl = document.getElementById("category");
+    const notesEl = document.getElementById("notes");
+    const modeBtn = document.getElementById("modeBtn");
+
+    let dropMode = true;
+
+    modeBtn.addEventListener("click", () => {
+      dropMode = !dropMode;
+      modeBtn.textContent = dropMode ? "Drop pin mode: ON" : "Drop pin mode: OFF";
+      modeBtn.style.opacity = dropMode ? "1" : "0.7";
+    });
+
+    // click map -> drop marker with details of report
+    map.on("click", (e) => {
+      if (!dropMode) return;
+
+      const { lat, lng } = e.latlng;
+      const category = categoryEl.value;
+      const notes = (notesEl.value || "").trim();
+
+      const popupHtml = `
+        <strong>${category}</strong><br>
+        ${notes ? `${escapeHtml(notes)}<br>` : ""}
+        <span style="color:#666;">Lat:</span> ${lat.toFixed(5)}<br>
+        <span style="color:#666;">Lng:</span> ${lng.toFixed(5)}
+      `;
+
+      L.marker([lat, lng])
+        .addTo(map)
+        .bindPopup(popupHtml)
+        .openPopup();
+    });
+ 
+    function escapeHtml(str) {
+      return str
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
