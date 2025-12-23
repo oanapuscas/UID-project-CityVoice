@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CityVoice – Cluj Report Map</title>
- 
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
   <link rel="stylesheet" href="style.css">
@@ -21,7 +21,8 @@
       <p>
         1) Choose category + add details + photos<br>
         2) Click the map to pick a location (draft)<br>
-        3) Press <strong>Save report</strong> to place the real pin 📍
+        3) Press <strong>Save report</strong> to place a permanent pin 📍<br>
+        Saved pins persist using <strong>IndexedDB</strong> (no backend).
       </p>
 
       <div class="card">
@@ -65,6 +66,7 @@
         <div class="actions">
           <button id="saveBtn" class="primary" type="button">Save report</button>
           <button id="clearBtn" class="secondary" type="button">Clear draft</button>
+          <button id="clearAllBtn" class="ghost" type="button">Clear ALL saved</button>
         </div>
 
         <div id="status" class="status">
@@ -81,27 +83,79 @@
         <hr>
         <div class="small">• Clicking the map only updates the <strong>draft</strong> location.</div>
         <div class="small">• Only <strong>Save report</strong> creates a permanent pin.</div>
+        <div class="small">• Saved pins reload after refresh via <strong>IndexedDB</strong>.</div>
       </div>
 
       <div class="small">
-        (Still no backend — saved pins remain while the page is open.)
+        (Storage is local to your browser/device. Clearing browser data removes it.)
       </div>
     </aside>
   </div>
  
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
- 
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-  <script>
-  
-    // map of cluj 
+  <script> 
+    const DB_NAME = "cityvoice_db";
+    const DB_VERSION = 1;
+    const STORE = "reports";
+
+    function openDb() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(STORE)) {
+            db.createObjectStore(STORE, { keyPath: "id" });
+          }
+        };
+
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function idbPut(db, value) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        tx.objectStore(STORE).put(value);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    function idbGetAll(db) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readonly");
+        const req = tx.objectStore(STORE).getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function idbClear(db) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        const req = tx.objectStore(STORE).clear();
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function makeId() {
+      if (crypto && crypto.randomUUID) return crypto.randomUUID();
+      return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+    }
+ 
+    // map to cluj
+
     const map = L.map("map").setView([46.7712, 23.6236], 13);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
-
+ 
     let searchMarker = null;
 
     const geocoderControl = L.Control.geocoder({
@@ -137,6 +191,7 @@
     const photosEl = document.getElementById("photos");
     const saveBtn = document.getElementById("saveBtn");
     const clearBtn = document.getElementById("clearBtn");
+    const clearAllBtn = document.getElementById("clearAllBtn");
     const statusEl = document.getElementById("status");
 
     const previewEls = [
@@ -148,32 +203,30 @@
     let draftLatLng = null;
     let draftMarker = null;
  
-    let selectedImageDataUrls = [];
+    let selectedFiles = []; 
+    let previewUrls = []; 
+    let db = null;
+ 
+    const savedMarkers = [];
  
     photosEl.addEventListener("change", async () => {
       const files = Array.from(photosEl.files || []);
 
       for (const file of files) {
-        if (selectedImageDataUrls.length >= 3) break;
-
-        const dataUrl = await fileToDataUrl(file);
-        selectedImageDataUrls.push(dataUrl);
-        setPreview(selectedImageDataUrls.length - 1, dataUrl);
+        if (selectedFiles.length >= 3) break;
+        selectedFiles.push(file);
+        const url = URL.createObjectURL(file);
+        previewUrls.push(url);
+        setPreview(selectedFiles.length - 1, url);
       }
  
       photosEl.value = "";
     });
 
-    function fileToDataUrl(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
+    function resetPreviews() { 
+      for (const u of previewUrls) URL.revokeObjectURL(u);
+      previewUrls = [];
 
-    function resetPreviews() {
       previewEls.forEach((slot, idx) => {
         slot.img.src = "";
         slot.img.style.display = "none";
@@ -182,16 +235,19 @@
       });
     }
 
-    function setPreview(index, dataUrl) {
+    function setPreview(index, url) {
       const slot = previewEls[index];
-      slot.img.src = dataUrl;
+      slot.img.src = url;
       slot.img.style.display = "block";
       slot.label.style.display = "none";
     }
+
+    // =========================
+    // CLICK MAP = set DRAFT location ONLY
  
     map.on("click", (e) => {
       draftLatLng = e.latlng;
- 
+
       if (!draftMarker) {
         draftMarker = L.marker(draftLatLng, { opacity: 0.7 }).addTo(map);
       } else {
@@ -204,69 +260,121 @@
       );
     });
 
-     
-    saveBtn.addEventListener("click", () => {
+    // =========================
+    //store in IndexedDB + place permanent marker
+
+    saveBtn.addEventListener("click", async () => {
       if (!draftLatLng) {
-        setStatus("Pick a location first: click on the map to set a draft pin.", "bad");
+        setStatus("Pick a location first: click the map to set a draft pin.", "bad");
+        return;
+      }
+      if (!db) {
+        setStatus("Database not ready yet. Refresh the page.", "bad");
         return;
       }
 
-      const category = categoryEl.value;
-      const notes = (notesEl.value || "").trim();
+      const report = {
+        id: makeId(),
+        lat: draftLatLng.lat,
+        lng: draftLatLng.lng,
+        category: categoryEl.value,
+        notes: (notesEl.value || "").trim(),
+        createdAt: Date.now(), 
+        photos: selectedFiles.slice(0, 3)
+      };
 
-      const thumbsHtml = selectedImageDataUrls.length
-        ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">
-            ${selectedImageDataUrls.map(src =>
-              `<img src="${src}" alt="Report photo" style="width:100%;height:60px;object-fit:cover;border-radius:8px;border:1px solid #eee;">`
-            ).join("")}
-          </div>`
-        : `<div style="margin-top:8px;color:#666;font-size:12px;">No photos attached.</div>`;
+      try {
+        await idbPut(db, report);
+        placeSavedMarker(report);
+ 
+        clearDraftOnly();
 
-      const popupHtml = `
-        <div style="min-width:220px;">
-          <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(category)}</div>
-          ${notes ? `<div style="margin-bottom:6px;">${escapeHtml(notes)}</div>` : ""}
-          <div style="color:#666;font-size:12px;">
-            Lat: ${draftLatLng.lat.toFixed(5)}<br>
-            Lng: ${draftLatLng.lng.toFixed(5)}
-          </div>
-          ${thumbsHtml}
-        </div>
-      `;
- 
-      L.marker(draftLatLng)
-        .addTo(map)
-        .bindPopup(popupHtml)
-        .openPopup();
- 
-      if (draftMarker) {
-        map.removeLayer(draftMarker);
-        draftMarker = null;
+        // clear form for next report
+        notesEl.value = "";
+        selectedFiles = [];
+        resetPreviews();
+
+        setStatus("Report saved ✅ It will still be here after refresh.", "ok");
+      } catch (err) {
+        console.error(err);
+        setStatus("Failed to save report (IndexedDB error). Check console.", "bad");
       }
-      draftLatLng = null;
- 
-      notesEl.value = "";
-      selectedImageDataUrls = [];
-      resetPreviews();
-
-      setStatus("Report saved ✅ Click the map to start a new draft location.", "ok");
     });
-
-     
+ 
     clearBtn.addEventListener("click", () => {
-      if (draftMarker) {
-        map.removeLayer(draftMarker);
-        draftMarker = null;
-      }
-      draftLatLng = null;
-
+      clearDraftOnly();
       notesEl.value = "";
-      selectedImageDataUrls = [];
+      selectedFiles = [];
       resetPreviews();
-
       setStatus("Draft cleared. Click the map to choose a new draft location.", "");
     });
 
+    function clearDraftOnly() {
+      if (draftMarker) {
+        map.removeLayer(draftMarker);
+        draftMarker = null;
+      }
+      draftLatLng = null;
+    }
+ 
+    clearAllBtn.addEventListener("click", async () => {
+      if (!db) return;
+      if (!confirm("This will remove ALL saved reports from this browser. Continue?")) return;
+
+      try {
+        await idbClear(db);
+        // remove markers from UI
+        while (savedMarkers.length) {
+          const m = savedMarkers.pop();
+          map.removeLayer(m);
+        }
+        setStatus("All saved reports cleared ✅", "ok");
+      } catch (err) {
+        console.error(err);
+        setStatus("Failed to clear saved reports (IndexedDB error).", "bad");
+      }
+    });
+ 
+    // RENDER SAVED REPORTS (on load)
+  
+    function placeSavedMarker(report) {
+      const popupHtml = buildPopupHtml(report);
+      const marker = L.marker([report.lat, report.lng]).addTo(map).bindPopup(popupHtml);
+      savedMarkers.push(marker);
+    }
+
+    function buildPopupHtml(report) {
+      const notes = report.notes ? `<div style="margin-bottom:6px;">${escapeHtml(report.notes)}</div>` : "";
+
+       
+      let thumbs = `<div style="margin-top:8px;color:#666;font-size:12px;">No photos attached.</div>`;
+      if (report.photos && report.photos.length) {
+        const imgs = report.photos.slice(0, 3).map((blob) => {
+          const url = URL.createObjectURL(blob); 
+
+          return `<img src="${url}" alt="Report photo"
+            style="width:100%;height:60px;object-fit:cover;border-radius:8px;border:1px solid #eee;">`;
+        }).join("");
+
+        thumbs = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">${imgs}</div>`;
+      }
+
+      const dateStr = new Date(report.createdAt).toLocaleString();
+
+      return `
+        <div style="min-width:240px;">
+          <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(report.category)}</div>
+          ${notes}
+          <div style="color:#666;font-size:12px;">
+            Saved: ${escapeHtml(dateStr)}<br>
+            Lat: ${Number(report.lat).toFixed(5)}<br>
+            Lng: ${Number(report.lng).toFixed(5)}
+          </div>
+          ${thumbs}
+        </div>
+      `;
+    }
+ 
     function setStatus(text, tone) {
       statusEl.textContent = text;
       statusEl.classList.remove("ok", "bad");
@@ -283,7 +391,19 @@
         .replaceAll("'", "&#039;");
     }
  
-    resetPreviews();
+    //open DB + load saved
+    (async function boot() {
+      try {
+        db = await openDb();
+        const reports = await idbGetAll(db);
+        for (const r of reports) placeSavedMarker(r);
+        setStatus(`Loaded ${reports.length} saved report(s) from IndexedDB ✅`, "ok");
+      } catch (err) {
+        console.error(err);
+        setStatus("Failed to open IndexedDB. Check console.", "bad");
+      }
+      resetPreviews();
+    })();
   </script>
 </body>
 </html>
