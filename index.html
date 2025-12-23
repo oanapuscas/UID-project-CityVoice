@@ -62,6 +62,27 @@
             <span id="label3">Photo 3</span>
           </div>
         </div>
+ 
+        <div class="subcard">
+          <div class="subcard-title">Contact details (optional)</div>
+          <div class="small">
+            Your contact details are stored privately (for municipal staff). They are never shown publicly unless you choose otherwise.
+          </div>
+
+          <label for="reporterName">Name (optional)</label>
+          <input id="reporterName" type="text" placeholder="Your name">
+
+          <label for="reporterEmail">Email (optional)</label>
+          <input id="reporterEmail" type="email" placeholder="name@example.com">
+
+          <label for="reporterPhone">Phone (optional)</label>
+          <input id="reporterPhone" type="tel" placeholder="+40...">
+
+          <label class="checkbox-row">
+            <input id="publicAnonymous" type="checkbox" checked>
+            Show publicly as anonymous (recommended)
+          </label>
+        </div>
 
         <div class="actions">
           <button id="saveBtn" class="primary" type="button">Save report</button>
@@ -91,11 +112,12 @@
       </div>
     </aside>
   </div>
- 
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-  <script> 
+  <script>
+     
     const DB_NAME = "cityvoice_db";
     const DB_VERSION = 1;
     const STORE = "reports";
@@ -147,8 +169,8 @@
       if (crypto && crypto.randomUUID) return crypto.randomUUID();
       return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
     }
- 
-    // map to cluj
+
+    // MAP OF CLUJ
 
     const map = L.map("map").setView([46.7712, 23.6236], 13);
 
@@ -156,6 +178,8 @@
       attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
  
+    // Geocoder (Cluj-only) 
+
     let searchMarker = null;
 
     const geocoderControl = L.Control.geocoder({
@@ -185,7 +209,7 @@
       map.flyTo(center, 17);
       searchMarker.openPopup();
     });
-
+ 
     const categoryEl = document.getElementById("category");
     const notesEl = document.getElementById("notes");
     const photosEl = document.getElementById("photos");
@@ -193,20 +217,25 @@
     const clearBtn = document.getElementById("clearBtn");
     const clearAllBtn = document.getElementById("clearAllBtn");
     const statusEl = document.getElementById("status");
+ 
+    const reporterNameEl = document.getElementById("reporterName");
+    const reporterEmailEl = document.getElementById("reporterEmail");
+    const reporterPhoneEl = document.getElementById("reporterPhone");
+    const publicAnonymousEl = document.getElementById("publicAnonymous");
 
     const previewEls = [
       { img: document.getElementById("preview1"), label: document.getElementById("label1") },
       { img: document.getElementById("preview2"), label: document.getElementById("label2") },
       { img: document.getElementById("preview3"), label: document.getElementById("label3") },
     ];
- 
+
     let draftLatLng = null;
     let draftMarker = null;
- 
-    let selectedFiles = []; 
-    let previewUrls = []; 
+
+    let selectedFiles = [];
+    let previewUrls = [];
     let db = null;
- 
+
     const savedMarkers = [];
  
     photosEl.addEventListener("change", async () => {
@@ -219,11 +248,11 @@
         previewUrls.push(url);
         setPreview(selectedFiles.length - 1, url);
       }
- 
+
       photosEl.value = "";
     });
 
-    function resetPreviews() { 
+    function resetPreviews() {
       for (const u of previewUrls) URL.revokeObjectURL(u);
       previewUrls = [];
 
@@ -243,8 +272,7 @@
     }
 
     // =========================
-    // CLICK MAP = set DRAFT location ONLY
- 
+    // click map = draft location only 
     map.on("click", (e) => {
       draftLatLng = e.latlng;
 
@@ -261,8 +289,7 @@
     });
 
     // =========================
-    //store in IndexedDB + place permanent marker
-
+    // Save report (IndexedDB + marker) 
     saveBtn.addEventListener("click", async () => {
       if (!draftLatLng) {
         setStatus("Pick a location first: click the map to set a draft pin.", "bad");
@@ -273,39 +300,62 @@
         return;
       }
 
+      const reporterName = (reporterNameEl.value || "").trim();
+      const reporterEmail = (reporterEmailEl.value || "").trim();
+      const reporterPhone = (reporterPhoneEl.value || "").trim();
+      const publicAnonymous = !!publicAnonymousEl.checked;
+
       const report = {
         id: makeId(),
         lat: draftLatLng.lat,
         lng: draftLatLng.lng,
         category: categoryEl.value,
         notes: (notesEl.value || "").trim(),
-        createdAt: Date.now(), 
-        photos: selectedFiles.slice(0, 3)
+        createdAt: Date.now(),
+        photos: selectedFiles.slice(0, 3),
+
+        // NEW: private contact details stored with report
+        contact: {
+          name: reporterName,
+          email: reporterEmail,
+          phone: reporterPhone,
+          publicAnonymous
+        }
       };
 
       try {
         await idbPut(db, report);
         placeSavedMarker(report);
- 
-        clearDraftOnly();
 
-        // clear form for next report
+        clearDraftOnly();
+ 
         notesEl.value = "";
         selectedFiles = [];
         resetPreviews();
+ 
+        reporterNameEl.value = "";
+        reporterEmailEl.value = "";
+        reporterPhoneEl.value = "";
+        publicAnonymousEl.checked = true;
 
-        setStatus("Report saved ✅ It will still be here after refresh.", "ok");
+        setStatus("Report saved ✅ Public map stays anonymous. Details stored privately.", "ok");
       } catch (err) {
         console.error(err);
         setStatus("Failed to save report (IndexedDB error). Check console.", "bad");
       }
     });
- 
+
     clearBtn.addEventListener("click", () => {
       clearDraftOnly();
       notesEl.value = "";
       selectedFiles = [];
       resetPreviews();
+
+      reporterNameEl.value = "";
+      reporterEmailEl.value = "";
+      reporterPhoneEl.value = "";
+      publicAnonymousEl.checked = true;
+
       setStatus("Draft cleared. Click the map to choose a new draft location.", "");
     });
 
@@ -316,14 +366,13 @@
       }
       draftLatLng = null;
     }
- 
+
     clearAllBtn.addEventListener("click", async () => {
       if (!db) return;
       if (!confirm("This will remove ALL saved reports from this browser. Continue?")) return;
 
       try {
         await idbClear(db);
-        // remove markers from UI
         while (savedMarkers.length) {
           const m = savedMarkers.pop();
           map.removeLayer(m);
@@ -334,28 +383,33 @@
         setStatus("Failed to clear saved reports (IndexedDB error).", "bad");
       }
     });
- 
-    // RENDER SAVED REPORTS (on load)
-  
+
+    // =========================
+    // render saved reports 
     function placeSavedMarker(report) {
-      const popupHtml = buildPopupHtml(report);
+      const popupHtml = buildPopupHtmlPublic(report);
       const marker = L.marker([report.lat, report.lng]).addTo(map).bindPopup(popupHtml);
       savedMarkers.push(marker);
     }
 
-    function buildPopupHtml(report) {
+    //never show email/phone. show name only if NOT anonymous.
+    function buildPopupHtmlPublic(report) {
       const notes = report.notes ? `<div style="margin-bottom:6px;">${escapeHtml(report.notes)}</div>` : "";
 
-       
+      const contact = report.contact || {};
+      const isAnon = contact.publicAnonymous !== false; // default to anonymous
+      const publicReporterLine =
+        (!isAnon && contact.name)
+          ? `<div style="color:#666;font-size:12px;margin-bottom:6px;">Reported by: ${escapeHtml(contact.name)}</div>`
+          : `<div style="color:#666;font-size:12px;margin-bottom:6px;">Reported anonymously</div>`;
+
       let thumbs = `<div style="margin-top:8px;color:#666;font-size:12px;">No photos attached.</div>`;
       if (report.photos && report.photos.length) {
         const imgs = report.photos.slice(0, 3).map((blob) => {
-          const url = URL.createObjectURL(blob); 
-
+          const url = URL.createObjectURL(blob);
           return `<img src="${url}" alt="Report photo"
             style="width:100%;height:60px;object-fit:cover;border-radius:8px;border:1px solid #eee;">`;
         }).join("");
-
         thumbs = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">${imgs}</div>`;
       }
 
@@ -364,6 +418,7 @@
       return `
         <div style="min-width:240px;">
           <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(report.category)}</div>
+          ${publicReporterLine}
           ${notes}
           <div style="color:#666;font-size:12px;">
             Saved: ${escapeHtml(dateStr)}<br>
@@ -374,7 +429,7 @@
         </div>
       `;
     }
- 
+
     function setStatus(text, tone) {
       statusEl.textContent = text;
       statusEl.classList.remove("ok", "bad");
@@ -391,7 +446,6 @@
         .replaceAll("'", "&#039;");
     }
  
-    //open DB + load saved
     (async function boot() {
       try {
         db = await openDb();
