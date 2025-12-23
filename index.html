@@ -6,7 +6,7 @@
   <title>CityVoice – Cluj Report Map</title>
  
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
+  
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -19,8 +19,7 @@
     <aside class="panel">
       <h2>Report a city problem</h2>
       <p>
-        Pick a category, then click the map to drop a pin 📍
-        (FixMyStreet-style reporting).
+        Pick a category, add details + photos, then click the map to drop a pin 📍
       </p>
 
       <div class="card">
@@ -40,13 +39,31 @@
           <option value="Stray animals / animal issue">Stray animals / animal issue</option>
         </select>
 
-        <label for="notes">Extra details (optional)</label>
-        <textarea id="notes" placeholder="What happened? Any landmarks? When did you notice it?"></textarea>
+        <label for="notes">Description (optional)</label>
+        <textarea id="notes" placeholder="What happened? Landmarks? When did you notice it?"></textarea>
+ 
+        <label for="photos">Attach up to 3 photos</label>
+        <input id="photos" type="file" accept="image/*" multiple>
+ 
+        <div class="photo-grid" aria-label="Photo previews">
+          <div class="photo-slot">
+            <img id="preview1" alt="Photo preview 1">
+            <span id="label1">Photo 1</span>
+          </div>
+          <div class="photo-slot">
+            <img id="preview2" alt="Photo preview 2">
+            <span id="label2">Photo 2</span>
+          </div>
+          <div class="photo-slot">
+            <img id="preview3" alt="Photo preview 3">
+            <span id="label3">Photo 3</span>
+          </div>
+        </div>
 
         <button id="modeBtn" type="button">Drop pin mode: ON</button>
 
         <div class="hint">
-          Tip: You can zoom in before placing the pin for better accuracy.
+          Tip: zoom in before placing the pin for better accuracy.
         </div>
       </div>
 
@@ -54,12 +71,12 @@
         <div class="small"><strong>How it works:</strong></div>
         <hr>
         <div class="small">1) Choose category</div>
-        <div class="small">2) Click map → pin appears</div>
-        <div class="small">3) Pin popup shows your category + notes + coordinates</div>
+        <div class="small">2) Add details + photos</div>
+        <div class="small">3) Click map → pin stores the report</div>
       </div>
 
       <div class="small">
-        (This is UI-only for now — no backend saving yet.)
+        (Still no backend — reports exist while the page is open.)
       </div>
     </aside>
   </div>
@@ -67,7 +84,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    // map of cluj-napoca
+    // map of cluj
     const map = L.map("map").setView([46.7712, 23.6236], 13);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -77,8 +94,17 @@
     const categoryEl = document.getElementById("category");
     const notesEl = document.getElementById("notes");
     const modeBtn = document.getElementById("modeBtn");
+    const photosEl = document.getElementById("photos");
+
+    const previewEls = [
+      { img: document.getElementById("preview1"), label: document.getElementById("label1") },
+      { img: document.getElementById("preview2"), label: document.getElementById("label2") },
+      { img: document.getElementById("preview3"), label: document.getElementById("label3") },
+    ];
 
     let dropMode = true;
+ 
+    let selectedImageDataUrls = [];
 
     modeBtn.addEventListener("click", () => {
       dropMode = !dropMode;
@@ -86,35 +112,95 @@
       modeBtn.style.opacity = dropMode ? "1" : "0.7";
     });
 
-    // click map -> drop marker with details of report
+   photosEl.addEventListener("change", async () => {
+  const files = Array.from(photosEl.files || []);
+ 
+  for (const file of files) {
+    if (selectedImageDataUrls.length >= 3) break;
+
+    const dataUrl = await fileToDataUrl(file);
+    selectedImageDataUrls.push(dataUrl);
+ 
+    setPreview(selectedImageDataUrls.length - 1, dataUrl);
+  }
+ 
+  photosEl.value = "";
+});
+
+
+    function resetPreviews() {
+      previewEls.forEach((slot, idx) => {
+        slot.img.src = "";
+        slot.img.style.display = "none";
+        slot.label.style.display = "block";
+        slot.label.textContent = `Photo ${idx + 1}`;
+      });
+    }
+
+    function setPreview(index, dataUrl) {
+      const slot = previewEls[index];
+      slot.img.src = dataUrl;
+      slot.img.style.display = "block";
+      slot.label.style.display = "none";
+    }
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+  
     map.on("click", (e) => {
       if (!dropMode) return;
 
       const { lat, lng } = e.latlng;
       const category = categoryEl.value;
       const notes = (notesEl.value || "").trim();
+ 
+      const thumbsHtml = selectedImageDataUrls.length
+        ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">
+            ${selectedImageDataUrls.map(src =>
+              `<img src="${src}" alt="Report photo" style="width:100%;height:60px;object-fit:cover;border-radius:8px;border:1px solid #eee;">`
+            ).join("")}
+          </div>`
+        : `<div style="margin-top:8px;color:#666;font-size:12px;">No photos attached.</div>`;
 
       const popupHtml = `
-        <strong>${category}</strong><br>
-        ${notes ? `${escapeHtml(notes)}<br>` : ""}
-        <span style="color:#666;">Lat:</span> ${lat.toFixed(5)}<br>
-        <span style="color:#666;">Lng:</span> ${lng.toFixed(5)}
+        <div style="min-width:220px;">
+          <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(category)}</div>
+          ${notes ? `<div style="margin-bottom:6px;">${escapeHtml(notes)}</div>` : ""}
+          <div style="color:#666;font-size:12px;">
+            Lat: ${lat.toFixed(5)}<br>
+            Lng: ${lng.toFixed(5)}
+          </div>
+          ${thumbsHtml}
+        </div>
       `;
-
+ 
       L.marker([lat, lng])
         .addTo(map)
         .bindPopup(popupHtml)
         .openPopup();
+ 
+      notesEl.value = "";
+      photosEl.value = "";
+      selectedImageDataUrls = [];
+      resetPreviews();
     });
  
     function escapeHtml(str) {
-      return str
+      return String(str)
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
     }
+ 
+    resetPreviews();
   </script>
 </body>
 </html>
