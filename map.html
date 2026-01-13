@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CityVoice – Cluj Report Map</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app">
+    <div id="map"></div>
+
+    <aside class="panel">
+      <h2>Report a city problem</h2>
+      <p>
+        1) Choose category + add details + photos<br>
+        2) Click the map to pick a location (draft)<br>
+        3) Press <strong>Save report</strong> to place a permanent pin 📍<br>
+        Saved pins persist using <strong>IndexedDB</strong> (no backend).
+      </p>
+
+      <div class="card">
+        <label for="category">Problem category</label>
+        <select id="category">
+          <option value="Pothole">Pothole</option>
+          <option value="Broken pavement / sidewalk">Broken pavement / sidewalk</option>
+          <option value="Streetlight not working">Streetlight not working</option>
+          <option value="Graffiti / vandalism">Graffiti / vandalism</option>
+          <option value="Fly-tipping / illegal dumping">Fly-tipping / illegal dumping</option>
+          <option value="Blocked drain / flooding">Blocked drain / flooding</option>
+          <option value="Damaged road sign / markings">Damaged road sign / markings</option>
+          <option value="Abandoned vehicle">Abandoned vehicle</option>
+          <option value="Overgrown vegetation">Overgrown vegetation</option>
+          <option value="Waste bin issue">Waste bin issue</option>
+          <option value="Noise / disturbance">Noise / disturbance</option>
+          <option value="Stray animals / animal issue">Stray animals / animal issue</option>
+        </select>
+
+        <label for="notes">Description (optional)</label>
+        <textarea id="notes" placeholder="What happened? Landmarks? When did you notice it?"></textarea>
+
+        <label for="photos">Attach up to 3 photos</label>
+        <input id="photos" type="file" accept="image/*" multiple>
+
+        <div class="photo-grid" aria-label="Photo previews">
+          <div class="photo-slot">
+            <img id="preview1" alt="Photo preview 1">
+            <span id="label1">Photo 1</span>
+          </div>
+          <div class="photo-slot">
+            <img id="preview2" alt="Photo preview 2">
+            <span id="label2">Photo 2</span>
+          </div>
+          <div class="photo-slot">
+            <img id="preview3" alt="Photo preview 3">
+            <span id="label3">Photo 3</span>
+          </div>
+        </div>
+ 
+        <div class="subcard">
+          <div class="subcard-title">Contact details (optional)</div>
+          <div class="small">
+            Your contact details are stored privately (for municipal staff). They are never shown publicly unless you choose otherwise.
+          </div>
+
+          <label for="reporterName">Name (optional)</label>
+          <input id="reporterName" type="text" placeholder="Your name">
+
+          <label for="reporterEmail">Email (optional)</label>
+          <input id="reporterEmail" type="email" placeholder="name@example.com">
+
+          <label for="reporterPhone">Phone (optional)</label>
+          <input id="reporterPhone" type="tel" placeholder="+40...">
+
+          <label class="checkbox-row">
+            <input id="publicAnonymous" type="checkbox" checked>
+            Show publicly as anonymous (recommended)
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="saveBtn" class="primary" type="button">Save report</button>
+          <button id="clearBtn" class="secondary" type="button">Clear draft</button>
+          <button id="clearAllBtn" class="ghost" type="button">Clear ALL saved</button>
+        </div>
+
+        <div id="status" class="status">
+          Click the map to choose a location for your report (draft). Then press Save report.
+        </div>
+
+        <div class="hint">
+          Tip: Use the search bar on the map to find an address (Cluj-Napoca only).
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="small"><strong>Draft vs Saved:</strong></div>
+        <hr>
+        <div class="small">• Clicking the map only updates the <strong>draft</strong> location.</div>
+        <div class="small">• Only <strong>Save report</strong> creates a permanent pin.</div>
+        <div class="small">• Saved pins reload after refresh via <strong>IndexedDB</strong>.</div>
+      </div>
+
+      <div class="small">
+        (Storage is local to your browser/device. Clearing browser data removes it.)
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  <script src="database.js"></script>
+  <script src="support.js"></script>
+  <script src="map.js"></script>
+</body>
+</html>
+
