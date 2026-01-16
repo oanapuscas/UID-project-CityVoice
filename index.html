@@ -5,10 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CityVoice</title>
   <script>
-    window.location.href = "map.html";
+    const SESSION_KEY = "cityvoice_user_session";
+    const session = sessionStorage.getItem(SESSION_KEY);
+    
+    if (session) {
+      window.location.replace("map.html");
+    } else {
+      window.location.replace("login.html");
+    }
   </script>
 </head>
 <body>
-  <p>Redirecting to map...</p>
+  <p>Redirecting...</p>
 </body>
 </html>

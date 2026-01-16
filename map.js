@@ -282,7 +282,7 @@ saveBtn.addEventListener("click", async () => {
     reporterPhoneEl.value = "";
     publicAnonymousEl.checked = true;
 
-    setStatus("Report saved ✅ Public map stays anonymous. Details stored privately.", "ok");
+    setStatus("Report saved. Public map stays anonymous. Details stored privately.", "ok");
   } catch (err) {
     console.error(err);
     setStatus("Failed to save report (IndexedDB error). Check console.", "bad");
@@ -321,7 +321,7 @@ clearAllBtn.addEventListener("click", async () => {
       const m = savedMarkers.pop();
       map.removeLayer(m);
     }
-    setStatus("All saved reports cleared ✅", "ok");
+    setStatus("All saved reports cleared", "ok");
   } catch (err) {
     console.error(err);
     setStatus("Failed to clear saved reports (IndexedDB error).", "bad");
@@ -375,7 +375,6 @@ function buildPopupHtmlPublic(report) {
   const supportCount = report.supportCount || 0;
   const isSupported = isReportSupported(report.id);
   const supportButtonClass = isSupported ? "support-btn supported" : "support-btn";
-  const supportIcon = isSupported ? "👍" : "👋";
   const supportText = isSupported ? "Supported" : "Support";
 
   return `
@@ -391,8 +390,7 @@ function buildPopupHtmlPublic(report) {
       ${thumbs}
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid #eee;">
         <button id="support-btn-${report.id}" class="${supportButtonClass}" data-report-id="${report.id}" style="width:100%;padding:8px 12px;background:${isSupported ? "#4CAF50" : "#f0f0f0"};color:${isSupported ? "white" : "#333"};border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.3s ease;">
-          <span>${supportIcon}</span>
-          <span>${supportText} (${supportCount})</span>
+          ${supportText} (${supportCount})
         </button>
       </div>
     </div>
@@ -423,7 +421,7 @@ function escapeHtml(str) {
       if (!r.supportCount) r.supportCount = 0;
       placeSavedMarker(r);
     }
-    setStatus(`Loaded ${reports.length} saved report(s) from IndexedDB ✅`, "ok");
+    setStatus(`Loaded ${reports.length} saved report(s) from IndexedDB`, "ok");
   } catch (err) {
     console.error(err);
     setStatus("Failed to open IndexedDB. Check console.", "bad");

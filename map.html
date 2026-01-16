@@ -12,6 +12,13 @@
 
 <body>
   <div class="app">
+    <header style="grid-column: 1 / -1; background: white; border-bottom: 1px solid #e6e6e6; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <strong>CityVoice</strong>
+        <span id="userRole" style="margin-left: 12px; color: #666; font-size: 13px;"></span>
+      </div>
+      <button id="logoutBtn" style="padding: 6px 12px; background: #f0f0f0; border: 1px solid #d8d8e6; border-radius: 6px; cursor: pointer; font-size: 13px;">Logout</button>
+    </header>
     <div id="map"></div>
 
     <aside class="panel">
@@ -19,7 +26,7 @@
       <p>
         1) Choose category + add details + photos<br>
         2) Click the map to pick a location (draft)<br>
-        3) Press <strong>Save report</strong> to place a permanent pin 📍<br>
+        3) Press <strong>Save report</strong> to place a permanent pin<br>
         Saved pins persist using <strong>IndexedDB</strong> (no backend).
       </p>
 
@@ -112,6 +119,27 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const SESSION_KEY = "cityvoice_user_session";
+    const session = sessionStorage.getItem(SESSION_KEY);
+    
+    if (!session) {
+      window.location.replace("login.html");
+    } else {
+      const userData = JSON.parse(session);
+      const userRoleEl = document.getElementById("userRole");
+      const roleLabels = {
+        passive: "Passive Citizen",
+        active: "Active Citizen"
+      };
+      userRoleEl.textContent = roleLabels[userData.role] || userData.role;
+      
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        sessionStorage.removeItem(SESSION_KEY);
+        window.location.replace("login.html");
+      });
+    }
+  </script>
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   <script src="database.js"></script>
   <script src="support.js"></script>
