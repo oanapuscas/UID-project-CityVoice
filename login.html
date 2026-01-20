@@ -69,39 +69,54 @@
       background: #111;
       color: white;
     }
-    .btn-passive {
-      background: #4CAF50;
-      color: white;
-    }
-    .btn-active {
-      background: #2196F3;
-      color: white;
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #111;
+      border: 1px solid #d8d8e6;
     }
     .login-buttons button:hover {
       opacity: 0.9;
     }
-    .error-message {
-      background: #fff5f5;
-      border: 1px solid #f0c9c9;
-      color: #c33;
+    .error-message, .success-message {
       padding: 10px;
       border-radius: 8px;
       font-size: 13px;
       margin-bottom: 16px;
       display: none;
     }
-    .error-message.show {
+    .error-message {
+      background: #fff5f5;
+      border: 1px solid #f0c9c9;
+      color: #c33;
+    }
+    .success-message {
+      background: #f3fbf5;
+      border: 1px solid #cfe9d6;
+      color: #2d7a3e;
+    }
+    .error-message.show, .success-message.show {
       display: block;
     }
-    .credentials-hint {
-      margin-top: 24px;
-      padding-top: 24px;
-      border-top: 1px solid #eee;
-      font-size: 12px;
-      color: #888;
-    }
-    .credentials-hint strong {
+    .toggle-mode {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 13px;
       color: #666;
+    }
+    .toggle-mode button {
+      background: none;
+      border: none;
+      color: #2196F3;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+      font-size: 13px;
+    }
+    .form-section {
+      display: none;
+    }
+    .form-section.active {
+      display: block;
     }
   </style>
 </head>
@@ -109,28 +124,43 @@
   <div class="login-container">
     <div class="login-card">
       <h1>CityVoice</h1>
-      <p>Sign in to report and support city issues</p>
+      <p id="formDescription">Sign in to report and support city issues</p>
       
       <div id="errorMessage" class="error-message"></div>
+      <div id="successMessage" class="success-message"></div>
       
-      <form class="login-form" id="loginForm">
-        <label for="username">Username</label>
-        <input type="text" id="username" name="username" required autocomplete="username">
+      <!-- Login Form -->
+      <form class="login-form form-section active" id="loginForm">
+        <label for="loginUsername">Username</label>
+        <input type="text" id="loginUsername" name="username" required autocomplete="username">
         
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" required autocomplete="current-password">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" name="password" required autocomplete="current-password">
         
         <div class="login-buttons">
           <button type="submit" class="btn-primary">Login</button>
-          <button type="button" class="btn-passive" id="quickPassive">Quick Login: Passive Citizen</button>
-          <button type="button" class="btn-active" id="quickActive">Quick Login: Active Citizen</button>
         </div>
       </form>
-      
-      <div class="credentials-hint">
-        <strong>Demo Credentials:</strong><br>
-        Passive Citizen: <code>passive / passive123</code><br>
-        Active Citizen: <code>active / active123</code>
+
+      <!-- Register Form -->
+      <form class="login-form form-section" id="registerForm">
+        <label for="registerUsername">Choose Username</label>
+        <input type="text" id="registerUsername" name="username" required autocomplete="off" minlength="3">
+        
+        <label for="registerPassword">Choose Password</label>
+        <input type="password" id="registerPassword" name="password" required autocomplete="new-password" minlength="4">
+        
+        <label for="registerPasswordConfirm">Confirm Password</label>
+        <input type="password" id="registerPasswordConfirm" name="passwordConfirm" required autocomplete="new-password" minlength="4">
+        
+        <div class="login-buttons">
+          <button type="submit" class="btn-primary">Create Account</button>
+        </div>
+      </form>
+
+      <div class="toggle-mode">
+        <span id="toggleText">Don't have an account?</span>
+        <button type="button" id="toggleModeBtn">Register here</button>
       </div>
     </div>
   </div>
@@ -138,4 +168,3 @@
   <script src="login.js"></script>
 </body>
 </html>
-

@@ -1,25 +1,30 @@
 async function toggleSupport(reportId) {
   if (!db) return false;
   
-  const supported = getSupportedReports();
-  const isSupported = supported.includes(reportId);
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    alert("You must be logged in to support reports");
+    return false;
+  }
   
   try {
     const report = await idbGet(db, reportId);
     if (!report) return false;
+     
+    if (!report.supporters) {
+      report.supporters = [];
+    }
     
-    if (isSupported) {
-      report.supportCount = Math.max(0, (report.supportCount || 0) - 1);
-      const index = supported.indexOf(reportId);
-      supported.splice(index, 1);
-    } else {
-      report.supportCount = (report.supportCount || 0) + 1;
-      supported.push(reportId);
+    const hasSupported = report.supporters.includes(currentUser);
+    
+    if (hasSupported) { 
+      report.supporters = report.supporters.filter(user => user !== currentUser);
+    } else { 
+      report.supporters.push(currentUser);
     }
     
     await idbPut(db, report);
-    setSupportedReports(supported);
-    
+     
     const marker = savedMarkers.find(m => {
       const markerReport = reportsMap.get(m);
       return markerReport && markerReport.id === reportId;
@@ -43,7 +48,7 @@ async function toggleSupport(reportId) {
       }, 100);
     }
     
-    return !isSupported;
+    return !hasSupported;
   } catch (err) {
     console.error("Error toggling support:", err);
     return false;
@@ -245,6 +250,7 @@ saveBtn.addEventListener("click", async () => {
     return;
   }
 
+  const currentUser = getCurrentUser();
   const reporterName = (reporterNameEl.value || "").trim();
   const reporterEmail = (reporterEmailEl.value || "").trim();
   const reporterPhone = (reporterPhoneEl.value || "").trim();
@@ -258,7 +264,8 @@ saveBtn.addEventListener("click", async () => {
     notes: (notesEl.value || "").trim(),
     createdAt: Date.now(),
     photos: selectedFiles.slice(0, 3),
-    supportCount: 0,
+    supporters: [],
+    createdBy: currentUser,
     contact: {
       name: reporterName,
       email: reporterEmail,
@@ -329,7 +336,7 @@ clearAllBtn.addEventListener("click", async () => {
 });
 
 function placeSavedMarker(report) {
-  if (!report.supportCount) report.supportCount = 0;
+  if (!report.supporters) report.supporters = [];
   const popupHtml = buildPopupHtmlPublic(report);
   const marker = L.marker([report.lat, report.lng]).addTo(map);
   marker.bindPopup(popupHtml);
@@ -372,10 +379,24 @@ function buildPopupHtmlPublic(report) {
   }
 
   const dateStr = new Date(report.createdAt).toLocaleString();
-  const supportCount = report.supportCount || 0;
-  const isSupported = isReportSupported(report.id);
+  const supportCount = getSupportCount(report);
+  const currentUser = getCurrentUser();
+  const isSupported = hasUserSupported(report);
   const supportButtonClass = isSupported ? "support-btn supported" : "support-btn";
   const supportText = isSupported ? "Supported" : "Support";
+   
+  let supportersList = "";
+  if (supportCount > 0) {
+    const supporters = getSupporters(report);
+    const displaySupporters = supporters.slice(0, 5);  
+    const remaining = supportCount - displaySupporters.length;
+    
+    supportersList = `
+      <div style="margin-top:8px;padding:8px;background:#f9f9f9;border-radius:6px;font-size:11px;color:#666;">
+        <strong style="color:#333;">Supported by:</strong> ${displaySupporters.map(u => escapeHtml(u)).join(", ")}${remaining > 0 ? ` and ${remaining} more` : ""}
+      </div>
+    `;
+  }
 
   return `
     <div style="min-width:240px;">
@@ -392,6 +413,7 @@ function buildPopupHtmlPublic(report) {
         <button id="support-btn-${report.id}" class="${supportButtonClass}" data-report-id="${report.id}" style="width:100%;padding:8px 12px;background:${isSupported ? "#4CAF50" : "#f0f0f0"};color:${isSupported ? "white" : "#333"};border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.3s ease;">
           ${supportText} (${supportCount})
         </button>
+        ${supportersList}
       </div>
     </div>
   `;
@@ -418,7 +440,7 @@ function escapeHtml(str) {
     db = await openDb();
     const reports = await idbGetAll(db);
     for (const r of reports) {
-      if (!r.supportCount) r.supportCount = 0;
+      if (!r.supporters) r.supporters = [];
       placeSavedMarker(r);
     }
     setStatus(`Loaded ${reports.length} saved report(s) from IndexedDB`, "ok");
@@ -428,4 +450,3 @@ function escapeHtml(str) {
   }
   resetPreviews();
 })();
-

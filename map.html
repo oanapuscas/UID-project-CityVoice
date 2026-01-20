@@ -15,7 +15,7 @@
     <header style="grid-column: 1 / -1; background: white; border-bottom: 1px solid #e6e6e6; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
       <div>
         <strong>CityVoice</strong>
-        <span id="userRole" style="margin-left: 12px; color: #666; font-size: 13px;"></span>
+        <span id="userDisplay" style="margin-left: 12px; color: #666; font-size: 13px;"></span>
       </div>
       <button id="logoutBtn" style="padding: 6px 12px; background: #f0f0f0; border: 1px solid #d8d8e6; border-radius: 6px; cursor: pointer; font-size: 13px;">Logout</button>
     </header>
@@ -127,12 +127,8 @@
       window.location.replace("login.html");
     } else {
       const userData = JSON.parse(session);
-      const userRoleEl = document.getElementById("userRole");
-      const roleLabels = {
-        passive: "Passive Citizen",
-        active: "Active Citizen"
-      };
-      userRoleEl.textContent = roleLabels[userData.role] || userData.role;
+      const userDisplay = document.getElementById("userDisplay");
+      userDisplay.textContent = `Logged in as: ${userData.username}`;
       
       document.getElementById("logoutBtn").addEventListener("click", () => {
         sessionStorage.removeItem(SESSION_KEY);
@@ -146,4 +142,3 @@
   <script src="map.js"></script>
 </body>
 </html>
-

@@ -1,16 +1,21 @@
-const SUPPORT_STORAGE_KEY = "cityvoice_supported_reports";
-
-function getSupportedReports() {
-  const stored = localStorage.getItem(SUPPORT_STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+function getCurrentUser() {
+  const SESSION_KEY = "cityvoice_user_session";
+  const stored = sessionStorage.getItem(SESSION_KEY);
+  if (!stored) return null;
+  const session = JSON.parse(stored);
+  return session.username;
 }
-
-function setSupportedReports(supported) {
-  localStorage.setItem(SUPPORT_STORAGE_KEY, JSON.stringify(supported));
+ 
+function hasUserSupported(report) {
+  const currentUser = getCurrentUser();
+  if (!currentUser || !report.supporters) return false;
+  return report.supporters.includes(currentUser);
 }
-
-function isReportSupported(reportId) {
-  const supported = getSupportedReports();
-  return supported.includes(reportId);
+ 
+function getSupporters(report) {
+  return report.supporters || [];
 }
-
+ 
+function getSupportCount(report) {
+  return (report.supporters || []).length;
+}
