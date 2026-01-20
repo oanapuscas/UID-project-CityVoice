@@ -137,7 +137,7 @@ function createReportCard(report) {
     : "";
   
   const departmentBadge = report.assignedDepartment
-    ? `<div style="margin-top: 8px;"><span style="background: #E3F2FD; color: #1976D2; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">📋 ${escapeHtml(report.assignedDepartment)}</span></div>`
+    ? `<div style="margin-top: 8px;"><span style="background: #E3F2FD; color: #1976D2; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">${escapeHtml(report.assignedDepartment)}</span></div>`
     : "";
   
   card.innerHTML = `
@@ -155,12 +155,12 @@ function createReportCard(report) {
     ${report.notes ? `<div class="report-details">${escapeHtml(report.notes)}</div>` : ""}
     
     <div class="report-location">
-      📍 Lat: ${Number(report.lat).toFixed(5)}, Lng: ${Number(report.lng).toFixed(5)}
+      Location: Lat: ${Number(report.lat).toFixed(5)}, Lng: ${Number(report.lng).toFixed(5)}
     </div>
     
     ${departmentBadge}
     
-    <span class="support-count">👍 ${supportCount} ${supportCount === 1 ? 'supporter' : 'supporters'}</span>
+    <span class="support-count">${supportCount} ${supportCount === 1 ? 'supporter' : 'supporters'}</span>
     
     ${photoPreview}
     ${contactInfo}

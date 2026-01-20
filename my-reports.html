@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CityVoice – My Reports</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="my-reports.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>My Reports</h1>
+        <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">Track the status of your submitted reports</p>
+      </div>
+      <div class="header-actions">
+        <a href="map.html" class="btn btn-primary">Back to Map</a>
+        <button class="btn btn-secondary" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <div id="reportsContainer"></div>
+  </div>
+
+  <script src="database.js"></script>
+  <script src="support.js"></script>
+  <script>
+    const SESSION_KEY = "cityvoice_user_session";
+    const session = sessionStorage.getItem(SESSION_KEY);
+    
+    if (!session) {
+      window.location.replace("login.html");
+    }
+    
+    const userData = JSON.parse(session);
+    const currentUser = userData.username;
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      sessionStorage.removeItem(SESSION_KEY);
+      window.location.replace("login.html");
+    });
+
+    async function loadMyReports() {
+      try {
+        const db = await openDb();
+        const allReports = await idbGetAll(db);
+        
+        const myReports = allReports.filter(r => r.createdBy === currentUser);
+        
+        const container = document.getElementById("reportsContainer");
+        
+        if (myReports.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <h2>No Reports Yet</h2>
+              <p>You haven't submitted any reports. Head to the map to create your first report!</p>
+              <a href="map.html" class="btn btn-primary" style="margin-top: 20px;">Create Report</a>
+            </div>
+          `;
+          return;
+        }
+        
+        myReports.sort((a, b) => b.createdAt - a.createdAt);
+        
+        container.innerHTML = `<div class="reports-grid">${myReports.map(createReportCard).join('')}</div>`;
+        
+        myReports.forEach(report => {
+          if (report.photos && report.photos.length > 0) {
+            report.photos.forEach((blob, idx) => {
+              const img = document.getElementById(`photo-${report.id}-${idx}`);
+              if (img) {
+                img.src = URL.createObjectURL(blob);
+              }
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Failed to load reports:", err);
+        document.getElementById("reportsContainer").innerHTML = `
+          <div class="empty-state">
+            <h2>Error Loading Reports</h2>
+            <p>Failed to load your reports. Please refresh the page.</p>
+          </div>
+        `;
+      }
+    }
+
+    function createReportCard(report) {
+      const status = report.status || 'new';
+      const statusClass = `status-${status}`;
+      const statusLabel = formatStatus(status);
+      const dateStr = new Date(report.createdAt).toLocaleString();
+      const supportCount = report.supporters ? report.supporters.length : 0;
+      
+      const timeline = createTimeline(report);
+      
+      const departmentBadge = report.assignedDepartment
+        ? `<div class="department-badge">Assigned to: ${escapeHtml(report.assignedDepartment)}</div>`
+        : '';
+      
+      const photoPreview = report.photos && report.photos.length > 0
+        ? `<div class="photo-preview">${report.photos.map((blob, idx) => 
+            `<img id="photo-${report.id}-${idx}" alt="Report photo">`
+          ).join('')}</div>`
+        : '';
+      
+      return `
+        <div class="report-card">
+          <div class="report-header">
+            <div>
+              <h3 class="report-title">${escapeHtml(report.category)}</h3>
+              <div class="report-date">Submitted: ${escapeHtml(dateStr)}</div>
+            </div>
+            <span class="status-badge ${statusClass}">${statusLabel}</span>
+          </div>
+          
+          ${report.notes ? `<div class="report-description">${escapeHtml(report.notes)}</div>` : ''}
+          
+          <div class="report-location">
+            Location: Lat ${Number(report.lat).toFixed(5)}, Lng ${Number(report.lng).toFixed(5)}
+          </div>
+          
+          ${departmentBadge}
+          
+          <div class="support-info">
+            <strong>${supportCount}</strong> ${supportCount === 1 ? 'person has' : 'people have'} supported this report
+          </div>
+          
+          ${photoPreview}
+          
+          <div class="status-timeline">
+            <div class="timeline-title">Status Timeline</div>
+            ${timeline}
+          </div>
+        </div>
+      `;
+    }
+
+    function createTimeline(report) {
+      const statusHistory = report.statusHistory || [
+        { status: 'new', timestamp: report.createdAt, updatedBy: 'system' }
+      ];
+      
+      const currentStatus = report.status || 'new';
+      
+      return `
+        <div class="timeline">
+          ${statusHistory.map((item, index) => {
+            const isLast = index === statusHistory.length - 1;
+            const date = new Date(item.timestamp).toLocaleString();
+            const updatedBy = item.updatedBy === 'system' ? 'You' : `Admin (${item.updatedBy})`;
+            
+            return `
+              <div class="timeline-item">
+                <div class="timeline-dot ${isLast ? 'current' : ''}"></div>
+                <div class="timeline-content">
+                  <div class="timeline-status">${formatStatus(item.status)}</div>
+                  <div class="timeline-meta">${date} · ${updatedBy}</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function formatStatus(status) {
+      const statusMap = {
+        'new': 'New - Awaiting Review',
+        'assigned': 'Assigned to Department',
+        'in_progress': 'In Progress',
+        'resolved': 'Resolved'
+      };
+      return statusMap[status] || status;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    loadMyReports();
+  </script>
+</body>
+</html>

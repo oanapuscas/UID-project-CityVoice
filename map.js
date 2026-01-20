@@ -398,10 +398,38 @@ function buildPopupHtmlPublic(report) {
     `;
   }
 
+  const status = report.status || 'new';
+  const statusColors = {
+    'new': { bg: '#FFF3E0', color: '#F57C00' },
+    'assigned': { bg: '#E3F2FD', color: '#1976D2' },
+    'in_progress': { bg: '#F3E5F5', color: '#7B1FA2' },
+    'resolved': { bg: '#E8F5E9', color: '#388E3C' }
+  };
+  const statusLabels = {
+    'new': 'New',
+    'assigned': 'Assigned',
+    'in_progress': 'In Progress',
+    'resolved': 'Resolved'
+  };
+  const statusStyle = statusColors[status] || statusColors['new'];
+  const statusLabel = statusLabels[status] || status;
+  
+  const statusBadge = `
+    <div style="margin-top:8px;padding:6px 10px;background:${statusStyle.bg};color:${statusStyle.color};border-radius:12px;font-size:11px;font-weight:600;display:inline-block;">
+      ${statusLabel}
+    </div>
+  `;
+  
+  const departmentInfo = report.assignedDepartment 
+    ? `<div style="margin-top:6px;color:#666;font-size:11px;">${escapeHtml(report.assignedDepartment)}</div>`
+    : '';
+
   return `
     <div style="min-width:240px;">
       <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(report.category)}</div>
       ${publicReporterLine}
+      ${statusBadge}
+      ${departmentInfo}
       ${notes}
       <div style="color:#666;font-size:12px;">
         Saved: ${escapeHtml(dateStr)}<br>
