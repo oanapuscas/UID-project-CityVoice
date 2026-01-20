@@ -10,7 +10,7 @@ function saveUsers(users) {
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
 }
  
-function registerUser(username, password) {
+function registerUser(username, password, role = "active_citizen") {
   const users = getUsers();
   
   if (users[username]) {
@@ -20,6 +20,7 @@ function registerUser(username, password) {
   users[username] = {
     username: username,
     password: password, 
+    role: role,
     createdAt: Date.now()
   };
   
@@ -42,9 +43,10 @@ function authenticate(username, password) {
   return { success: true, user: user };
 }
  
-function setUserSession(username) {
+function setUserSession(username, role) {
   const session = {
     username: username,
+    role: role || "active_citizen",
     loginTime: Date.now()
   };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -85,15 +87,41 @@ function showSuccess(message) {
   }, 3000);
 }
 
-function handleLogin(username) {
-  setUserSession(username);
-  window.location.replace("map.html");
+function handleLogin(username, role) {
+  setUserSession(username, role);
+  
+  if (role === "employee") {
+    window.location.replace("admin.html");
+  } else {
+    window.location.replace("map.html");
+  }
 }
  
 const session = getUserSession();
 if (session) {
-  window.location.replace("map.html");
+  if (session.role === "employee") {
+    window.location.replace("admin.html");
+  } else {
+    window.location.replace("map.html");
+  }
 }
+
+function createDemoAccounts() {
+  const users = getUsers();
+  
+  if (!users["employee_demo"]) {
+    users["employee_demo"] = {
+      username: "employee_demo",
+      password: "admin123",
+      role: "employee",
+      createdAt: Date.now()
+    };
+    saveUsers(users);
+    console.log("Demo employee account created: username=employee_demo, password=admin123");
+  }
+}
+
+createDemoAccounts();
  
 const loginForm = document.getElementById("loginForm");
 const registerForm = document.getElementById("registerForm");
@@ -138,7 +166,7 @@ loginForm.addEventListener("submit", (e) => {
   const result = authenticate(username, password);
   
   if (result.success) {
-    handleLogin(username);
+    handleLogin(username, result.user.role);
   } else {
     showError(result.message);
   }
