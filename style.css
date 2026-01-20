@@ -9,7 +9,8 @@ body {
 .app {
   height: 100vh;
   display: grid;
-  grid-template-columns: 3fr 1fr; /* 75% / 25% */
+  grid-template-columns: 3fr 1fr;
+  grid-template-rows: auto 1fr;
 }
 
 #map {
@@ -80,7 +81,7 @@ textarea {
   min-height: 90px;
 }
 
-/* ✅ NEW: checkbox row */
+/* checkbox row */
 .checkbox-row {
   display: flex;
   gap: 10px;
@@ -193,6 +194,36 @@ hr {
   border: none;
   border-top: 1px solid #eee;
   margin: 12px 0;
+}
+
+.support-btn {
+  transition: all 0.3s ease;
+}
+
+.support-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.support-btn.supported {
+  background: #4CAF50 !important;
+  color: white !important;
+}
+
+.support-animate {
+  animation: supportPulse 0.6s ease;
+}
+
+@keyframes supportPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Mobile fallback */
